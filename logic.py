@@ -1,12 +1,12 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from pyrogram import Client
+from pyrogram import Client, filters
 from pyrogram.errors import BotGroupsBlocked, PeerIdInvalid, UserDeactivated
 
 from config import api_hash, api_id
-from user import (close_db_connection, create_db_connection, fetch_users,
-                  update_user_status)
+from db.con_to_db import close_db_connection, create_db_connection
+from user import add_user_to_db, fetch_users, update_user_status
 
 CHECK_INTERVAL = 60
 STOP_WORDS = ["прекрасно", "ожидать"]
@@ -70,6 +70,15 @@ async def get_chat_history(client, user_id):
     messages = await client.get_history(user_id, limit=100)
     texts = [message.text.lower() for message in messages if message.text]
     return texts
+
+
+@app.on_message(filters.private & filters.incoming & ~filters.bot)
+async def new_user(client, message):
+    conn = await create_db_connection()
+    try:
+        await add_user_to_db(conn, message.from_user.id)
+    finally:
+        await close_db_connection(conn)
 
 
 if __name__ == "__main__":
